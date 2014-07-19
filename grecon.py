@@ -2,6 +2,7 @@ import socket
 import re
 import pygeoip
 import mysql.connector
+from mysql.connector import IntegrityError
 from datetime import datetime
 import Queue
 import threading
@@ -15,6 +16,28 @@ unique = set()
 queue = Queue.Queue()
 
 ### Functions
+def get_hostname(address):
+    try:
+        hostname, foo, ip = socket.gethostbyaddr(address)
+    except socket.herror:
+        return None, None
+    else:
+        return ip[0], hostname
+
+
+def get_geo(ip):
+    results = gi.record_by_addr(ip)
+
+    try:
+        latitude = results['latitude']
+        longitude = results['longitude']
+        country = results['country_name']
+    except (UnicodeEncodeError, TypeError):
+        return None, None, None
+    else:
+        return latitude, longitude, country
+
+
 def add_record(ip, hostname, latitude, longitude, country):
     cnx = mysql.connector.connect(user='', password='',
                                   host='127.0.0.1',
@@ -29,24 +52,18 @@ def add_record(ip, hostname, latitude, longitude, country):
 
     data_ip = (ip, hostname, latitude, longitude, country, today)
 
-    cursor.execute(add_data, data_ip)
-    cnx.commit()
-
-    cursor.close()
-    cnx.close()
-
-
-def get_geo(ip):
-    results = gi.record_by_addr(ip)
-
     try:
-        latitude = results['latitude']
-        longitude = results['longitude']
-        country = results['country_name']
-    except (UnicodeEncodeError, TypeError):
-        pass
+        cursor.execute(add_data, data_ip)
+        cnx.commit()
+    except IntegrityError:
+        print "%s\t already exists in database" % ip
+        cursor.close()
+        cnx.close()
+        return False
     else:
-        return latitude, longitude, country
+        cursor.close()
+        cnx.close()
+        return True
 
 
 ### Classes
@@ -59,14 +76,16 @@ class ThreadUrl(threading.Thread):
         while True:
             address = self.queue.get()
 
-            try:
-                hostname, foo, ip = socket.gethostbyaddr(address)
-            except socket.herror:
-                pass
+            ip, hostname = get_hostname(address)
+            if ip is None:
+                print "%s\t hostname not found" % address
             else:
-                latitude, longitude, country = get_geo(ip[0])
-                add_record(ip[0], hostname, latitude, longitude, country)
-                print ip[0] + "\t" + hostname
+                latitude, longitude, country = get_geo(ip)
+                if latitude is None:
+                    print "%s\t geodata not found" % ip
+                else:
+                    if add_record(ip, hostname, latitude, longitude, country):
+                        print ip + "\t " + hostname
 
             # Complete
             self.queue.task_done()
@@ -89,10 +108,8 @@ for i in range(4):
 
 # Load queue and execute threads
 for ip_address in unique:
-    try:
-        queue.put(ip_address)
-    except:
-        pass
+    queue.put(ip_address)
+
 
 # Sit on queue and wait for threads to finish
 queue.join()
