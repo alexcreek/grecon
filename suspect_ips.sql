@@ -30,7 +30,8 @@ CREATE TABLE `suspect_ips` (
   `longitude` float NOT NULL,
   `country` varchar(30) NOT NULL,
   `date` date DEFAULT NULL,
-  PRIMARY KEY (`id`)
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `ip` (`ip`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
