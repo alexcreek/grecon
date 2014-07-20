@@ -1,3 +1,4 @@
+import argparse
 import socket
 import re
 import pygeoip
@@ -7,9 +8,17 @@ from datetime import datetime
 import Queue
 import threading
 
+parser = argparse.ArgumentParser()
+parser.add_argument('-f', '--file', help='filewall log to parse')
+args = parser.parse_args()
+
 ### Declarations
-logfile = '/var/log/suspect-ips.log'
 geoDB = '/home/alex/Downloads/GeoLiteCity.dat'
+
+if args.file:
+    logfile = args.file
+else:
+    logfile = '/var/log/suspect-ips.log'
 
 gi = pygeoip.GeoIP(geoDB)
 unique = set()
