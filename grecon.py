@@ -2,11 +2,11 @@ import argparse
 import socket
 import re
 import pygeoip
-import mysql.connector
-from mysql.connector import IntegrityError
-from datetime import datetime
+import sqlite3
 import Queue
 import threading
+from sqlite3 import IntegrityError
+from datetime import datetime
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-f', '--file', help='filewall log to parse')
@@ -48,32 +48,29 @@ def get_geo(ip):
 
 
 def add_record(ip, hostname, latitude, longitude, country):
-    cnx = mysql.connector.connect(user='', password='',
-                                  host='127.0.0.1',
-                                  database='suspect_ips')
-    cursor = cnx.cursor()
+    db = sqlite3.connect('suspect_ips.db')
+    cursor = db.cursor()
 
     today = datetime.now().date()
 
-    add_data = ('INSERT INTO suspect_ips '
+    sql_query = ('INSERT INTO suspect_ips '
                 '(ip, hostname, latitude, longitude, country, date) '
-                'VALUES (%s,%s,%s,%s,%s,%s)')
+                'VALUES (?,?,?,?,?,?)')
 
-    data_ip = (ip, hostname, latitude, longitude, country, today)
+    data_values = (ip, hostname, latitude, longitude, country, today)
 
     try:
-        cursor.execute(add_data, data_ip)
-        cnx.commit()
+        cursor.execute(sql_query, data_values)
     except IntegrityError:
         print "%s\t already exists in database" % ip
         cursor.close()
-        cnx.close()
+        db.close()
         return False
     else:
+        db.commit()
         cursor.close()
-        cnx.close()
+        db.close()
         return True
-
 
 ### Classes
 class ThreadUrl(threading.Thread):
@@ -84,7 +81,6 @@ class ThreadUrl(threading.Thread):
     def run(self):
         while True:
             address = self.queue.get()
-
             ip, hostname = get_hostname(address)
             if ip is None:
                 print "%s\t hostname not found" % address
@@ -118,7 +114,6 @@ for i in range(4):
 # Load queue and execute threads
 for ip_address in unique:
     queue.put(ip_address)
-
 
 # Sit on queue and wait for threads to finish
 queue.join()
