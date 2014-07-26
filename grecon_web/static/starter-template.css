@@ -1,0 +1,23 @@
+body {
+  padding-top: 50px;
+}
+.starter-template {
+  padding-top: 90px;
+  text-align: center;
+}
+a.navbar-brand {
+    font-size: 40px;
+    padding-top: 7px;
+}
+.navbar-form {
+    margin-top: 14px;
+}
+
+th {
+    font-weight: bold;
+    text-align: center;
+}
+td {
+    padding-left: 5px;
+    padding-right: 5px;
+}
