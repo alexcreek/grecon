@@ -5,6 +5,6 @@ create table suspect_ips(
     hostname text not null,
     latitude real not null,
     longitude real not null,
-    country text not null,
+    country text not null collate nocase,
     date text not null
 );
