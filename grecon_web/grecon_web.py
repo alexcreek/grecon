@@ -52,21 +52,59 @@ def home():
     db = get_db()
     cur = db.cursor()
 
-    #if request.method == 'POST' and form.validate():
+    # validate_on_submit = true if post + validation
     if form.validate_on_submit():
-        country = request.form['country']
-        sql_query = ('SELECT * FROM suspect_ips WHERE country = ? COLLATE NOCASE')
-        cur.execute(sql_query, (country,))
+        search = request.form['search']
+
+        # Validate input syntax
+        if not ':' in search:
+            flash('Syntax error: Search format is field:pattern')
+            return render_template('index.html', form=form)
+
+        # Unpack input + validate pattern
+        column_name, search_term = search.lower().split(':', 2)
+        if not search_term:
+            flash('No pattern entered')
+            return render_template('index.html', form=form)
+
+        # Find the correct select query
+        if column_name:
+            if column_name == 'ip':
+                cur.execute('SELECT * FROM suspect_ips WHERE ip LIKE ? ORDER BY Date DESC ', ('%'+search_term+'%',))
+            elif column_name == 'hostname':
+                cur.execute('SELECT * FROM suspect_ips WHERE hostname LIKE ? ORDER BY Date DESC', ('%'+search_term+'%',))
+            elif column_name == 'latitude':
+                cur.execute('SELECT * FROM suspect_ips WHERE latitude LIKE ? ORDER BY Date DESC', ('%'+search_term+'%',))
+            elif column_name == 'longitude':
+                cur.execute('SELECT * FROM suspect_ips WHERE longitude LIKE ? ORDER BY Date DESC', ('%'+search_term+'%',))
+            elif column_name == 'country':
+                cur.execute('SELECT * FROM suspect_ips WHERE country LIKE ? ORDER BY Date DESC', ('%'+search_term+'%',))
+            elif column_name == 'date':
+                cur.execute('SELECT * FROM suspect_ips WHERE date LIKE ? ORDER BY Date DESC', ('%'+search_term+'%',))
+        else:
+            flash('Field %s not found' % column_name)
+            return render_template('index.html', form=form)
+
         entries = cur.fetchall()
         if len(entries) == 0:
-            #error = 'No records found'
-            flash('No records found')
+            flash('No records found matching %s' % search_term)
             return render_template('index.html', form=form)
-        return render_template('index.html', entries=entries, form=form)
+        else:
+            total = len(entries)
+            return render_template('index.html', entries=entries, form=form, total=total)
     else:
-        cur.execute('select * from suspect_ips')
+        cur.execute('SELECT * FROM suspect_ips ORDER BY Date DESC')
         entries = cur.fetchall()
-        return render_template('index.html', entries=entries, form=form)
+        return render_template('index.html', entries=entries[0:2500], form=form)
+
+def get_dropdowns():
+    db = get_db()
+    cur = db.cursor()
+    cur.execute('select distinct country from suspect_ips;')
+    dropdowns = cur.fetchall()
+    choices = zip(dropdowns, dropdowns)
+    return choices
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0')

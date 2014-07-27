@@ -17,6 +17,9 @@
 
 {% block body %}
 {% if entries %}
+  {% if total %}
+    <span class="total">{{ total }} records found</span>
+  {% endif %}
   <table border="1" id="sort" class="sort">
       <thead>
         <tr>
@@ -50,7 +53,7 @@
 <div class="form-group">
   <form method='POST' actions='/' class="navbar-form navbar-right" role="search">
     {{ form.hidden_tag() }}
-    {{ form.country(class_="form-control", placeholder="Search by Country") }}
+    {{ form.search(class_="form-control", placeholder="field:pattern") }}
     <input type="submit" class="btn btn-default", value="Search">
   </form>
 </div>
